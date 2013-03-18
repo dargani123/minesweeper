@@ -1,5 +1,5 @@
 class Square
-  attr_accessor :flagged, :clicked
+  attr_accessor :flagged, :revealed
   attr_reader :bomb, :number
 
   def initialize(bomb = false, number = 0)
@@ -7,15 +7,21 @@ class Square
     @bomb = bomb #true or false
 
     @flagged = false
-    @clicked = false
+    @revealed = false
   end
 
 end
 
+
+
+
+
 class Board
 
-  def initialize(size = 9, number_of_bombs = 10)
+  XADD = [-1,0,1,1,1,0,-1,-1]
+  YADD = [1,1,1,0,-1,-1,-1,0]
 
+  def initialize(size = 9, number_of_bombs = 10)
     @size = size
     # [[sq,b,sq],
     #  [sq,sq,sq],
@@ -25,6 +31,39 @@ class Board
     make_board(bomb_coords)
     show
   end
+
+
+  def click(coord)
+    x, y = coord[0], coord[1]
+    if @board[x][y].flagged == false
+      @board[x][y].flagged = true
+    else
+        if @board[x][y].bomb
+          return "bomb"
+        elsif @board[x][y].number == 0
+          reveal(coord)
+        else
+          @board[x][y].revealed = true
+        end
+    end
+  end
+
+  def reveal(coord)
+    #call reveal on all the neighbors
+    #
+    square = @board[coord[0]][coord[1]]
+
+    if square.number > 0
+      square.revealed = true
+    elsif square.bomb || square.flagged
+      return
+    else #if number == 0       ##refactor , same as count_bombs
+      square.revealed = true
+      get_neighbors(coord).each {|neighbor| reveal(neighbor)}
+    end
+
+  end
+
 
   def make_board(bomb_coords)
     ## add bombs
@@ -37,19 +76,19 @@ class Board
     end
   end
 
-  #return number of surrounding bombs
-  def count_bombs(coord)
-
-    xadd = [-1,0,1,1,1,0,-1,-1]
-    yadd = [1,1,1,0,-1,-1,-1,0]
-    num_bombs = 0
-
-    xadd.length.times do |i|
-      check = [coord[0]+yadd[i], coord[1]+xadd[i]]
-      if in_bounds?(check) && @board[check[0]][check[1]].bomb
-        num_bombs += 1
-      end
+  def get_neighbors (coord) ## Returns coordinates of inbound nieghbors
+    neighbors = []
+    XADD.length.times do |i|
+      check = [coord[0]+YADD[i], coord[1]+XADD[i]]
+      neighbors << check if in_bounds?(check)
     end
+    neighbors
+  end
+
+  #return number of surrounding bombs
+  def count_bombs(coord)  ##refactor
+    num_bombs = 0
+    get_neighbors(coord).each { |neighbor| num_bombs += 1 if @board[neighbor[0]][neighbor[1]].bomb }
     num_bombs
   end
 
