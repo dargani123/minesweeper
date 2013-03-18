@@ -12,6 +12,78 @@ class Square
 
 end
 
+class Minesweeper
+  def initialize
+    @board = Board.new
+  end
+
+
+  def play
+    ##loop
+      ##get input
+      ##valid input?
+
+      ##call click on that square
+    #repeat
+    loop do
+      show
+      flag, coord = get_input
+      if flag
+        @board.flag( coord )
+      else
+        @board.click( coord )
+      end
+    end
+
+
+  end
+
+  def get_input  ##  doesn't test valid?
+    flag = false
+    puts "enter coordinate on the board to click, enter 'f' to flag"
+    input = gets.chomp
+    if input == "f"
+      flag = true
+      puts "enter coordinate on the board to flag"
+      input = gets.chomp
+       coord = input.split(" ").map(&:to_i) ## 1 1
+    else
+      coord = input.split(" ").map(&:to_i) ## 1 1
+    end
+    [flag, coord]
+  end
+
+
+
+
+
+
+  def show
+    @board.board_display.each do |row|
+      row.each do |square|
+        print "#{square} "
+      end
+      puts
+    end
+  end
+
+
+  # def show_cheat
+#     @board.each do |row|
+#       row.each do |square|
+#         if square.bomb
+#           print "b "
+#         elsif square.number > 0
+#           print "#{square.number} "
+#         else
+#           print "* "
+#         end
+#       end
+#       puts "\n"
+#     end
+#   end
+
+end
 
 
 
@@ -29,21 +101,26 @@ class Board
     @board = Array.new(9) {[Square.new(false, 0)]*9}
     bomb_coords = create_bombs(number_of_bombs)
     make_board(bomb_coords)
-    show
+    puts "debug:"
+    show_debug
+    puts "the one"
   end
 
+  def flag
+
+  end
 
   def click(coord)
-    x, y = coord[0], coord[1]
-    if @board[x][y].flagged == false
-      @board[x][y].flagged = true
+    square = @board[ coord[0] ][ coord[1] ]
+    if square.flagged == true
+      square.flagged = false
     else
-        if @board[x][y].bomb
+        if square.bomb
           return "bomb"
-        elsif @board[x][y].number == 0
+        elsif square.number == 0
           reveal(coord)
         else
-          @board[x][y].revealed = true
+          square.revealed = true
         end
     end
   end
@@ -55,7 +132,7 @@ class Board
 
     if square.number > 0
       square.revealed = true
-    elsif square.bomb || square.flagged
+    elsif square.bomb || square.flagged || square.revealed
       return
     else #if number == 0       ##refactor , same as count_bombs
       square.revealed = true
@@ -105,7 +182,28 @@ class Board
     bomb_array
   end
 
-  def show
+  def board_display
+    board_display = Array.new(9) { [nil]*9 }
+    @board.each_with_index do |row, i|
+      row.each_with_index do |square, j|
+        if square.revealed
+          if @board[i][j].bomb
+            board_display[i][j] =  "b"
+          elsif @board[i][j].number > 0
+            board_display[i][j] = "#{square.number}"
+          else
+            board_display[i][j] = "_"
+          end
+        else
+          board_display[i][j] =  "*"
+        end
+      end
+    end
+    board_display
+  end
+
+
+  def show_debug
     @board.each do |row|
       row.each do |square|
         if square.bomb
@@ -122,4 +220,4 @@ class Board
 
 end
 
-a = Board.new(9,10)
+Minesweeper.new.play
