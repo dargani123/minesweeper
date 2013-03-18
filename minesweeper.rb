@@ -13,43 +13,105 @@ class Square
 end
 
 class Minesweeper
-  def initialize
-    @board = Board.new
-  end
 
   def play
-    game_over = 0
-    until game_over != 0
+    playing = true
+    while playing = true
+      round
+      puts "would you like to play again?"
+      playing = false if gets.chomp.downcase != 'y'
+    end
+  end
+
+  def convert_seconds (seconds)
+    minutes = seconds / 60
+    seconds = seconds % 60
+
+    minutes = "0#{minutes}" if minutes < 10
+    seconds = "0#{seconds}" if seconds < 10
+
+    "#{minutes}:#{seconds}"
+
+  end
+
+  def round
+    @board = Board.new
+    start = Time.now
+
+    game_status = 0
+    until game_status != 0
       show
-      flag, coord = get_input
-      if flag
-        game_over = @board.flag( coord )
+
+      puts "What's next: s) save, l) load, f) flag, or enter a coordinate"
+      current = Time.now
+      puts "Time elapsed: #{convert_seconds((current - start).to_i)}"
+
+      input = gets.chomp
+
+      case input
+      when "f"
+        puts "Enter coordinates:"
+        input = gets.chomp
+        game_status = @board.flag(input.split(" ").map(&:to_i))
+      when "s"
+        save
+        puts "game-saved"
+      when "l"
+        load
+        puts "New Game Loaded."
       else
-        game_over = @board.click( coord )
+        game_status = @board.click(input.split(" ").map(&:to_i))
       end
     end
-    show
-    case game_over
+
+    case game_status
     when -1
       puts "you got blown up :("
     when 1
       puts "you won!"
     end
+
+    show
+
   end
 
-  def get_input  ##  doesn't test valid?
-    flag = false
-    puts "enter coordinate on the board to click, enter 'f' to flag"
-    input = gets.chomp
-    if input == "f" || input == "f "
-      flag = true
-      puts "enter coordinate on the board to flag"
-      input = gets.chomp
-       coord = input.split(" ").map(&:to_i) ## 1 1
-    else
-      coord = input.split(" ").map(&:to_i) ## 1 1
-    end
-    [flag, coord]
+  # def get_input  ##  doesn't test valid? f,[1,2],s, l
+  #   flag = false
+  #   puts "enter coordinate on the board to click, enter 'f' to flag"
+  #   input = gets.chomp
+  #
+  #   if input == "f" || input == "f "
+  #     flag = true
+  #     puts "enter coordinate on the board to flag"
+  #     input = gets.chomp
+  #      coord = input.split(" ").map(&:to_i) ## 1 1
+  #   elsif input == "s"
+  #     save
+  #     puts "game-saved"
+  #     p @board
+  #   elsif input == "l"
+  #     load
+  #     puts "New Game Loaded."
+  #   else
+  #     coord = input.split(" ").map(&:to_i) ## 1 1
+  #   end
+  #
+  #   [flag, coord]
+  #
+  # end
+
+  def save
+    serialized_board = @board.dup.to_yaml
+    puts "save game as:"
+    filename = gets.chomp
+    File.open("#{filename}.txt", "w") { |f| f.print serialized_board }
+  end
+
+  def load
+    puts "load game called:"
+    filename = gets.chomp
+    serialized_board = File.read("#{filename}.txt")
+    @board = YAML::load(serialized_board)
   end
 
   def show
@@ -62,25 +124,10 @@ class Minesweeper
     end
   end
 
-  # def show_cheat
-#     @board.each do |row|
-#       row.each do |square|
-#         if square.bomb
-#           print "b "
-#         elsif square.number > 0
-#           print "#{square.number} "
-#         else
-#           print "* "
-#         end
-#       end
-#       puts "\n"
-#     end
-#   end
-
 end
 
 
-
+require 'yaml'
 
 class Board
 
@@ -101,6 +148,14 @@ class Board
     puts "debug:"
     show_debug
     puts "the one"
+  end
+
+  def save
+
+  end
+
+  def load
+
   end
 
   def bombs
