@@ -1,3 +1,5 @@
+require 'yaml'
+
 class Square
   attr_accessor :flagged, :revealed
   attr_reader :bomb, :number
@@ -10,95 +12,97 @@ class Square
     @revealed = false
   end
 
+  def render
+    if revealed
+      if bomb
+        "b"
+      elsif number > 0
+        "#{number}"
+      else
+        "_"
+      end
+    elsif flagged
+      "f"
+    else
+      "*"
+    end
+  end
+
 end
 
 class Minesweeper
-
   def play
     playing = true
-    while playing = true
+    while playing == true
       round
       puts "would you like to play again?"
-      playing = false if gets.chomp.downcase != 'y'
+      playing = false unless gets.chomp.downcase == 'y'
     end
+    puts "Game over."
   end
 
-  def convert_seconds (seconds)
-    minutes = seconds / 60
-    seconds = seconds % 60
-
-    minutes = "0#{minutes}" if minutes < 10
-    seconds = "0#{seconds}" if seconds < 10
-
-    "#{minutes}:#{seconds}"
-
-  end
+private
 
   def round
     @board = Board.new
-    start = Time.now
+    start_time = Time.now
 
-    game_status = 0
-    until game_status != 0
-      show
-
-      puts "What's next: s) save, l) load, f) flag, or enter a coordinate"
-      current = Time.now
-      puts "Time elapsed: #{convert_seconds((current - start).to_i)}"
-
-      input = gets.chomp
-
+    game_status = :go
+    while game_status == :go
+      show(start_time)
+      input = get_input
       case input
-      when "f"
+      when :f
         puts "Enter coordinates:"
-        input = gets.chomp
-        game_status = @board.flag(input.split(" ").map(&:to_i))
-      when "s"
+        game_status = @board.flag(get_coords(gets.chomp))
+      when :s
         save
         puts "game-saved"
-      when "l"
+      when :l
         load
         puts "New Game Loaded."
       else
-        game_status = @board.click(input.split(" ").map(&:to_i))
+        game_status = @board.click(input)
       end
     end
 
-    case game_status
-    when -1
-      puts "you got blown up :("
-    when 1
-      puts "you won!"
-    end
-
-    show
-
+    show(start_time)
+    end_round(game_status)
   end
 
-  # def get_input  ##  doesn't test valid? f,[1,2],s, l
-  #   flag = false
-  #   puts "enter coordinate on the board to click, enter 'f' to flag"
-  #   input = gets.chomp
-  #
-  #   if input == "f" || input == "f "
-  #     flag = true
-  #     puts "enter coordinate on the board to flag"
-  #     input = gets.chomp
-  #      coord = input.split(" ").map(&:to_i) ## 1 1
-  #   elsif input == "s"
-  #     save
-  #     puts "game-saved"
-  #     p @board
-  #   elsif input == "l"
-  #     load
-  #     puts "New Game Loaded."
-  #   else
-  #     coord = input.split(" ").map(&:to_i) ## 1 1
-  #   end
-  #
-  #   [flag, coord]
-  #
-  # end
+  def end_round(game_status)
+    case game_status
+    when :lost
+      puts "you got blown up :("
+    when :won
+      puts "you won!"
+    end
+  end
+
+  def get_coords(string_coord)
+    string_coord.split(" ").map(&:to_i)
+  end
+
+  def valid_input?(input)
+   inputs = [:f,:l,:s]
+   numbers = (0..9).to_a
+   (input =~ /\d\s\d/) == 0 && @board.in_bounds?(get_coords(input)) || inputs.include?(input[0..1].to_sym)
+  end
+
+  def get_input ## validity tests
+    input = "Hello Kyle."
+    until valid_input?(input)
+      puts "What's next: s) save, l) load, f) flag, or enter a coordinate (ex: 0 0)"
+      input = gets.chomp
+      puts "oops, bad input" unless valid_input?(input)
+    end
+
+    if (input =~ /\d\s\d/) == 0
+      return get_coords(input)
+    else
+      return input[0..1].to_sym
+    end
+  end
 
   def save
     serialized_board = @board.dup.to_yaml
@@ -114,20 +118,31 @@ class Minesweeper
     @board = YAML::load(serialized_board)
   end
 
-  def show
+  def convert_seconds (seconds)
+    minutes = seconds / 60
+    seconds = seconds % 60
+
+    minutes = "0#{minutes}" if minutes < 10
+    seconds = "0#{seconds}" if seconds < 10
+
+    "#{minutes}:#{seconds}"
+  end
+
+  def show(start)
     puts "number of mines: #{@board.bombs} | flags: #{@board.flags}"
-    @board.board_display.each do |row|
+    puts "    0 1 2 3 4 5 6 7 8"
+    puts "    -----------------"
+    @board.board_display.each_with_index do |row, i|
+      print "#{i} | "
       row.each do |square|
         print "#{square} "
       end
       puts
     end
+    current = Time.now
+    puts "Time elapsed: #{convert_seconds((current - start).to_i)}"
   end
-
 end
-
-
-require 'yaml'
 
 class Board
 
@@ -141,7 +156,7 @@ class Board
     # [[sq,b,sq],
     #  [sq,sq,sq],
     #  [sq,sq,sq]]
-    @board = Array.new(9) {[Square.new(false, 0)]*9}
+    @board = Array.new(9) { [Square.new(false, 0)]*9 }
     @flags = 0
     @bomb_coords = create_bombs(number_of_bombs)
     make_board(@bomb_coords)
@@ -150,73 +165,59 @@ class Board
     puts "the one"
   end
 
-  def save
-
-  end
-
-  def load
-
-  end
-
   def bombs
     @bomb_coords.size
   end
 
   def won?
     return false unless @bomb_coords.size == @flags
-
-    @bomb_coords.each do |coord|
-      return false unless @board[coord[0]][coord[1]].flagged
-    end
-    true
+    @bomb_coords.all? { |coord| @board[coord[0]][coord[1]].flagged }
   end
 
-  def flag (coord)
-    square = @board[ coord[0] ][ coord[1] ]
-    return 0 if square.revealed
+  def flag(coord)
+    square = @board[coord[0]][coord[1]]
+    return :go if square.revealed
     if square.flagged
       @flags -= 1
     else
       @flags += 1
     end
     square.flagged = !square.flagged
-    return 1 if won?
-    0
+    return :won if won?
+    :go
   end
 
   def click(coord)
-    square = @board[ coord[0] ][ coord[1] ]
+    square = @board[coord[0]][coord[1]]
     if square.flagged == true
       square.flagged = false
       @flags -= 1
-      return 1 if won?
+      return :won if won?
     else
-        if square.bomb
-          square.revealed = true
-          return -1
-        elsif square.number == 0
-          reveal(coord)
-        else
-          square.revealed = true
-        end
+      if square.bomb
+        square.revealed = true
+        return :lost
+      elsif square.number == 0
+        reveal(coord)
+      else
+        square.revealed = true
+      end
     end
-    0
+    :go
   end
 
   def reveal(coord)
     #call reveal on all the neighbors
-    #
     square = @board[coord[0]][coord[1]]
 
     if square.flagged || square.revealed || square.bomb
       return
     elsif square.number > 0
        square.revealed = true
-    else #if number == 0       ##refactor , same as count_bombs
+    else #if number == 0
       square.revealed = true
       get_neighbors(coord).each {|neighbor| reveal(neighbor)}
     end
-
   end
 
   def make_board(bomb_coords)
@@ -262,27 +263,10 @@ class Board
   def board_display
     board_display = Array.new(9) { [nil]*9 }
     @board.each_with_index do |row, i|
-      row.each_with_index do |square, j|
-        if square.revealed
-          if @board[i][j].bomb
-            board_display[i][j] =  "b"
-          elsif @board[i][j].number > 0
-            board_display[i][j] = "#{square.number}"
-          else
-            board_display[i][j] = "_"
-          end
-        else
-          if @board[i][j].flagged
-           board_display[i][j] =  "f"
-          else
-           board_display[i][j] =  "*"
-          end
-        end
-      end
+      row.each_with_index { |square, j| board_display[i][j] = square.render }
     end
     board_display
   end
-
 
   def show_debug
     @board.each do |row|
@@ -298,7 +282,6 @@ class Board
       puts "\n"
     end
   end
-
 end
 
 Minesweeper.new.play
