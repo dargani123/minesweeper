@@ -85,7 +85,6 @@ private
 
   def valid_input?(input)
    inputs = [:f,:l,:s]
-   numbers = (0..9).to_a
    (input =~ /\d\s\d/) == 0 && @board.in_bounds?(get_coords(input)) || inputs.include?(input[0..1].to_sym)
   end
 
