@@ -159,9 +159,7 @@ class Board
     @flags = 0
     @bomb_coords = create_bombs(number_of_bombs)
     make_board(@bomb_coords)
-    puts "debug:"
-    show_debug
-    puts "the one"
+    show_debug if ARGV.include?('-d') || ARGV.include?('--debug')
   end
 
   def bombs
@@ -268,6 +266,8 @@ class Board
   end
 
   def show_debug
+    puts "debug:" 
+    
     @board.each do |row|
       row.each do |square|
         if square.bomb
